@@ -18,7 +18,8 @@ This repository contains some useful digital signal processing utilities, some o
 * `QueueWithSyncReadMem` - copy of Queue from the newest Chisel (currently not available in `chipyard`) with added optional block ram implementation
 * `AXI4StreamSimpleSplitter` - custom splitter written for one input and 2 outputs (TODO: replace current nodes with nexus node)
 * `AXI4StreamBufferWithBlockRam` - uses same principle as `AXI4StreamBuffer` from `rocket-dsp-utils` library only Queue is implemented using block ram
-* `AsyncQueueWithControlLine` - block which uses `AsyncQueueWithMem` .  It uses custom node written to support additional field inside bits - `ctrl` .
+* `AsyncQueueWithControlLine` - block which uses `AsyncQueueWithMem` .  It uses custom node written to support additional field inside bits - `ctrl`.
+
 **Important Note:**
 This project needs to be run with `chipyard` dependencies due to some specific relations that `AsyncQueue` requires to have.
 

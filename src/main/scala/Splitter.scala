@@ -69,7 +69,7 @@ class AXI4Splitter(address: AddressSet, beatBytes: Int = 8)(implicit p: Paramete
   val mem = Some(AXI4RegisterNode(address = address, beatBytes = beatBytes)) // use AXI4 memory mapped
 }
 
-object splitterApp extends App
+object SplitterApp extends App
 {
 
   implicit val p: Parameters = Parameters.empty
@@ -107,3 +107,6 @@ object splitterApp extends App
 
   chisel3.Driver.execute(Array("--target-dir", "verilog/Splitter", "--top-name", "Splitter"), ()=> standaloneModule.module) // generate verilog code
 }
+
+
+

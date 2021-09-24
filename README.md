@@ -1,3 +1,4 @@
+
 Digital Signal Processing Utilities
 =======================================================
 
@@ -13,9 +14,11 @@ This repository contains some useful digital signal processing utilities, some o
 * `AsyncQueueWithCrcLine` - block which uses `AsyncQueueWithMem` with 17 bit input and 17 bit output (16 bits are LVDS data, MSB bit is `crc_on_line` bit)
 * `AsyncQueueAXI4StreamOut` - input is LVDS data + valid line, output is AXI4 stream
 * `AsyncQueueModule` - simple test module
-* `DspQueueWithSyncReadMem` - It implements simple queue with custom parameters, it can support programmable full feature, useful for debugging purposes
-* `QueueWithSyncReadMem` - just a copy of Queue from the newest Chisel, currently not available in `chipyard`
-
+* `DspQueueWithSyncReadMem` - It implements simple queue with custom parameters, it can support programmable full feature, useful for debugging purposes, it can generate last signal after specified number of samples
+* `QueueWithSyncReadMem` - copy of Queue from the newest Chisel (currently not available in `chipyard`) with added optional block ram implementation
+* `AXI4StreamSimpleSplitter` - custom splitter written for one input and 2 outputs (TODO: replace current nodes with nexus node)
+* `AXI4StreamBufferWithBlockRam` - uses same principle as `AXI4StreamBuffer` from `rocket-dsp-utils` library only Queue is implemented using block ram
+* `AsyncQueueWithControlLine` - block which uses `AsyncQueueWithMem` .  It uses custom node written to support additional field inside bits - `ctrl` .
 **Important Note:**
 This project needs to be run with `chipyard` dependencies due to some specific relations that `AsyncQueue` requires to have.
 

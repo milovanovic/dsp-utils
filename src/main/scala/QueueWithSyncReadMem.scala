@@ -12,7 +12,8 @@ class QueueWithSyncReadMem[T <: Data](val gen: T,
                        val entries: Int,
                        val pipe: Boolean = false,
                        val flow: Boolean = false,
-                       val useSyncReadMem: Boolean = false)
+                       val useSyncReadMem: Boolean = false,
+                       val useBlockRam: Boolean = false)
                       (implicit compileOptions: chisel3.CompileOptions)
     extends Module() {
   require(entries > -1, "Queue must have non-negative number of entries")
@@ -36,10 +37,11 @@ class QueueWithSyncReadMem[T <: Data](val gen: T,
   val maybe_full = RegInit(false.B)
 
   val ptr_match = enq_ptr.value === deq_ptr.value
+
   val empty = ptr_match && !maybe_full
-  val full = ptr_match && maybe_full
+  val full = ptr_match && maybe_full // added RegNext
   val do_enq = WireDefault(io.enq.fire())
-  val do_deq = WireDefault(io.deq.fire())
+  val do_deq = WireDefault(!empty && io.deq.ready)
 
   when (do_enq) {
     ram(enq_ptr.value) := io.enq.bits
@@ -52,15 +54,28 @@ class QueueWithSyncReadMem[T <: Data](val gen: T,
     maybe_full := do_enq
   }
 
-  io.deq.valid := !empty
   io.enq.ready := !full
 
   if (useSyncReadMem) {
     val deq_ptr_next = Mux(deq_ptr.value === (entries.U - 1.U), 0.U, deq_ptr.value + 1.U)
-    val r_addr = WireDefault(Mux(do_deq, deq_ptr_next, deq_ptr.value))
-    io.deq.bits := ram.read(r_addr)
+    if (useBlockRam) {
+      // TODO: It should be checked how flow and pipe parameters can influence implementation with block ram
+      val r_addr_delayed = RegNext(WireDefault(Mux(do_deq, deq_ptr_next, deq_ptr.value)))
+      val outQueue = Module(new Queue(io.deq.bits.cloneType, entries = 1, pipe = true, flow = true))
+      outQueue.io.enq.bits := ram(r_addr_delayed)
+      outQueue.io.enq.valid := RegNext(do_deq)
+      outQueue.io.deq.ready := io.deq.ready
+      io.deq.bits := outQueue.io.deq.bits
+      io.deq.valid := outQueue.io.deq.valid
+    }
+    else {
+      io.deq.valid := !empty
+      val r_addr = WireDefault(Mux(do_deq, deq_ptr_next, deq_ptr.value))
+      io.deq.bits := ram.read(r_addr)
+    }
   }
   else {
+    io.deq.valid := !empty
     io.deq.bits := ram(deq_ptr.value)
   }
 
@@ -108,7 +123,8 @@ object QueueWithSyncReadMem
       entries: Int = 2,
       pipe: Boolean = false,
       flow: Boolean = false,
-      useSyncReadMem: Boolean = false): DecoupledIO[T] = {
+      useSyncReadMem: Boolean = false,
+      useBlockRam: Boolean = false): DecoupledIO[T] = {
     if (entries == 0) {
       val deq = Wire(new DecoupledIO(chiselTypeOf(enq.bits)))
       deq.valid := enq.valid
@@ -116,7 +132,7 @@ object QueueWithSyncReadMem
       enq.ready := deq.ready
       deq
     } else {
-      val q = Module(new QueueWithSyncReadMem(chiselTypeOf(enq.bits), entries, pipe, flow, useSyncReadMem))
+      val q = Module(new QueueWithSyncReadMem(chiselTypeOf(enq.bits), entries, pipe, flow, useSyncReadMem, useBlockRam))
       q.io.enq.valid := enq.valid // not using <> so that override is allowed
       q.io.enq.bits := enq.bits
       enq.ready := q.io.enq.ready
@@ -134,8 +150,9 @@ object QueueWithSyncReadMem
       entries: Int = 2,
       pipe: Boolean = false,
       flow: Boolean = false,
-      useSyncReadMem: Boolean = false): IrrevocableIO[T] = {
-    val deq = apply(enq, entries, pipe, flow, useSyncReadMem)
+      useSyncReadMem: Boolean = false,
+      useBlockRam: Boolean = false): IrrevocableIO[T] = {
+    val deq = apply(enq, entries, pipe, flow, useSyncReadMem, useBlockRam)
     require(entries > 0, "Zero-entry queues don't guarantee Irrevocability")
     val irr = Wire(new IrrevocableIO(chiselTypeOf(deq.bits)))
     irr.bits := deq.bits

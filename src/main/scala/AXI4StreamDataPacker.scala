@@ -22,8 +22,8 @@ abstract class DataPacker [D, U, E, O, B <: Data](beatBytes: Int) extends LazyMo
         val (out, _) = streamNode.out(0)
 
         // Control registers
-        val r_control = RegInit(0.U(2.W))
-        val r_last_counter = RegInit(4096.U(16.W))
+        val r_control = RegInit(2.U(2.W))
+        val r_last_counter = RegInit(256.U(16.W))
 
         // Define register fields
         val fields = Seq(RegField( 2, r_control,      RegFieldDesc(name = "r_control", desc = "Register used to set the packer functionality")),

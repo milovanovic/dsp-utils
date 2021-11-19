@@ -82,7 +82,7 @@ abstract class DataStoringModule [D, U, E, O, B <: Data](beatBytes: Int, totalDa
       out.valid := outQueue.io.deq.valid
 
       // Define register fields
-      val fields = Seq(RegField(log2Up(totalData+1), expectedData,   RegFieldDesc(name = "r_control", desc = "Register used to set the packer functionality")))
+      val fields = Seq(RegField(log2Up(totalData+1), expectedData,   RegFieldDesc(name = "total_data", desc = "Set total data that should be used in ram")))
 
       // Define abstract register map so it can be AXI4, Tilelink, APB, AHB
       regmap(fields.zipWithIndex.map({ case (f, i) => i * beatBytes -> Seq(f)}): _*)
@@ -122,5 +122,5 @@ object AXI4StreamDataStoringApp extends App
   implicit val p: Parameters = Parameters.empty
   val totalData = 512*64
   val lazyDut = LazyModule(new AXI4StreamDataStoringModule(AddressSet(0x00, 0xF), beatBytes = 4, totalData) with AXI4StreamDataStoringPins{override def numBytes = 4})
-  (new ChiselStage).execute(Array("--target-dir", "verilog/AXI4StreamDataPacker"), Seq(ChiselGeneratorAnnotation(() => lazyDut.module)))
+  (new ChiselStage).execute(Array("--target-dir", "verilog/AXI4StreamDataStoring"), Seq(ChiselGeneratorAnnotation(() => lazyDut.module)))
 }

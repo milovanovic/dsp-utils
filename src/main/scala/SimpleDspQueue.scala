@@ -34,7 +34,7 @@ trait AXI4SimpleDspQueueStandaloneBlock extends SimpleDspQueue {
   val out = InModuleBody { ioOutNode.makeIO() }
 }
 
-class SimpleDspQueue(val params: SimpleDspQueueCustomParams, beatBytes: Int) extends LazyModule()(Parameters.empty) {
+class SimpleDspQueue(val params: SimpleDspQueueCustomParams) extends LazyModule()(Parameters.empty) {
   val streamNode = AXI4StreamIdentityNode()
   val depth = params.queueDepth
 
@@ -65,7 +65,7 @@ object SimpleDspQueueApp extends App
 
   val baseAddress = 0x500
   implicit val p: Parameters = Parameters.empty
-  val queueModule = LazyModule(new SimpleDspQueue(params, beatBytes = 4) with AXI4SimpleDspQueueStandaloneBlock)
+  val queueModule = LazyModule(new SimpleDspQueue(params) with AXI4SimpleDspQueueStandaloneBlock)
   chisel3.Driver.execute(args, ()=> queueModule.module)
 
 }

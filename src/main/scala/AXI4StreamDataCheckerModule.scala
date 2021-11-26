@@ -11,7 +11,7 @@ import freechips.rocketchip.amba.axi4stream._
 import freechips.rocketchip.config._
 import freechips.rocketchip.diplomacy._
 import freechips.rocketchip.regmapper._
-
+import chisel3.util.experimental.loadMemoryFromFile
 
 trait AXI4DataCheckerModuleStandaloneBlock extends AXI4StreamDataCheckerModule {
   def standaloneParams = AXI4BundleParameters(addrBits = 32, dataBits = 32, idBits = 1)
@@ -50,7 +50,7 @@ trait AXI4DataCheckerModuleStandaloneBlock extends AXI4StreamDataCheckerModule {
 
 //Note: while for this version of chisel readmemh is not supported, generated verilog code needs to have that part inserted
 //TODO: make memory with VecInit, parametrize master data width
-abstract class DataCheckerModule [D, U, E, O, B <: Data](beatBytes: Int, totalData: Int, useSyncMem: Boolean) extends LazyModule()(Parameters.empty) with DspBlock[D, U, E, O, B] with HasCSR {
+abstract class DataCheckerModule [D, U, E, O, B <: Data](beatBytes: Int, totalData: Int, useSyncMem: Boolean, loadFromFile: Boolean, fileName: String) extends LazyModule()(Parameters.empty) with DspBlock[D, U, E, O, B] with HasCSR {
 
   val streamNode = AXI4StreamNexusNode(
     masterFn = (ms: Seq[AXI4StreamMasterPortParameters]) =>
@@ -78,6 +78,12 @@ abstract class DataCheckerModule [D, U, E, O, B <: Data](beatBytes: Int, totalDa
     val read_address = RegInit(0.U(log2Up(totalData).W))
     val valid_delayed = RegNext(valid, false.B)
     val ram = SyncReadMem(totalData, UInt(32.W)) // this is custom memory and used to stream radar data
+
+    if (fileName.trim().nonEmpty && loadFromFile) {
+      println("Initialized memory")
+      loadMemoryFromFile(ram, fileName)
+    }
+
     val total_data_reg = RegInit(totalData.U(log2Up(totalData + 1).W))
 
     when (valid) {
@@ -90,6 +96,8 @@ abstract class DataCheckerModule [D, U, E, O, B <: Data](beatBytes: Int, totalDa
 
     for ((in, inIdx) <- ins.zipWithIndex) {
       val data_delayed = RegNext(in.bits.data, 0.U)
+      data_delayed.suggestName("data_delayed")
+      dontTouch(data_delayed)
       success(inIdx) := data_delayed === read_data
       in.ready := out(0).ready
     }
@@ -105,14 +113,16 @@ abstract class DataCheckerModule [D, U, E, O, B <: Data](beatBytes: Int, totalDa
   }
 }
 
-class AXI4StreamDataCheckerModule(address: AddressSet, beatBytes: Int = 4, totalData: Int, useSyncMem: Boolean = true)(implicit p: Parameters) extends DataCheckerModule[AXI4MasterPortParameters, AXI4SlavePortParameters, AXI4EdgeParameters, AXI4EdgeParameters, AXI4Bundle](beatBytes, totalData, useSyncMem) with AXI4DspBlock with AXI4HasCSR {
+class AXI4StreamDataCheckerModule(address: AddressSet, beatBytes: Int = 4, totalData: Int, useSyncMem: Boolean = true, loadFromFile: Boolean = false, fileName: String = "" )(implicit p: Parameters) extends DataCheckerModule[AXI4MasterPortParameters, AXI4SlavePortParameters, AXI4EdgeParameters, AXI4EdgeParameters, AXI4Bundle](beatBytes, totalData, useSyncMem, loadFromFile, fileName) with AXI4DspBlock with AXI4HasCSR {
   override val mem = Some(AXI4RegisterNode(address = address, beatBytes = beatBytes))
 }
 
 object AXI4StreamDataCheckerApp extends App
 {
   implicit val p: Parameters = Parameters.empty
-  val totalData = 64*16*2
-  val lazyDut = LazyModule(new AXI4StreamDataCheckerModule(AddressSet(0x00, 0xF), beatBytes = 4, totalData) with AXI4DataCheckerModuleStandaloneBlock)
+  val totalData = 64*512
+  val fileName = "py_dir/fft2_python_model_64_512_hex.txt"
+
+  val lazyDut = LazyModule(new AXI4StreamDataCheckerModule(AddressSet(0x00, 0xF), beatBytes = 4, totalData, useSyncMem = true, loadFromFile = true, fileName = fileName) with AXI4DataCheckerModuleStandaloneBlock)
   (new ChiselStage).execute(Array("--target-dir", "verilog/AXI4StreamDataChecker"), Seq(ChiselGeneratorAnnotation(() => lazyDut.module)))
 }

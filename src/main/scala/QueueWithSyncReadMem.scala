@@ -31,7 +31,7 @@ class QueueWithSyncReadMem[T <: Data](val gen: T,
 
   val io = IO(new QueueIO(genType, entries))
 
-  val ram = if (useSyncReadMem) SyncReadMem(entries, genType, SyncReadMem.WriteFirst) else Mem(entries, genType)
+  val ram = if (useSyncReadMem) SyncReadMem(entries, genType) else Mem(entries, genType)
   val enq_ptr = Counter(entries)
   val deq_ptr = Counter(entries)
   val maybe_full = RegInit(false.B)
